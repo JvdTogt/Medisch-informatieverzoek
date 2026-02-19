@@ -2,11 +2,8 @@
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
 import { FileData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 /**
  * Verwerkt medische informatie en anonimiseert deze.
- * Hernoemd van processMedicalInfo naar processMedicalData conform de build error.
  */
 export const processMedicalData = async (
   requestInput: { text: string; file?: FileData },
@@ -14,6 +11,10 @@ export const processMedicalData = async (
   specialistText: string,
   specialistFile?: FileData
 ): Promise<string> => {
+  // Initialiseer binnen de functie om fouten bij het laden van de pagina te voorkomen
+  // als de API-sleutel nog niet direct beschikbaar is in de omgeving.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   const parts: Part[] = [];
 
   const systemInstruction = `
