@@ -14,10 +14,24 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  Trash2
+  Trash2,
+  Key
 } from 'lucide-react';
 import InputSection from './components/InputSection';
 import { fileToBase64, getMimeType } from './utils';
+
+// Declareer de AIStudio interface en breid Window uit op een manier die niet conflicteert met omgevingsdefinities.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey(): Promise<boolean>;
+    openSelectKey(): Promise<void>;
+  }
+
+  interface Window {
+    // Gebruik readonly om te voldoen aan de modifiers van de omgeving
+    readonly aistudio: AIStudio;
+  }
+}
 
 const App: React.FC = () => {
   const [requestText, setRequestText] = useState('');
@@ -28,6 +42,18 @@ const App: React.FC = () => {
 
   const [processing, setProcessing] = useState<ProcessingState>({ status: 'idle' });
   const [result, setResult] = useState<string | null>(null);
+
+  const handleSetKey = async () => {
+    try {
+      if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+        // Na het openen gaan we er vanuit dat de gebruiker een poging doet
+        setProcessing({ status: 'idle' });
+      }
+    } catch (err) {
+      console.error("Fout bij openen key selector:", err);
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (data: FileData) => void) => {
     const file = e.target.files?.[0];
@@ -51,6 +77,15 @@ const App: React.FC = () => {
       return;
     }
 
+    // Check of er een sleutel is (alleen als de API beschikbaar is)
+    if (window.aistudio) {
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey && (!process.env.API_KEY || process.env.API_KEY === 'undefined')) {
+        await handleSetKey();
+        return;
+      }
+    }
+
     setProcessing({ status: 'processing', message: 'Bezig met genereren...' });
     setResult(null);
 
@@ -64,10 +99,17 @@ const App: React.FC = () => {
       setResult(generatedText);
       setProcessing({ status: 'success' });
     } catch (err: any) {
-      setProcessing({ 
-        status: 'error', 
-        message: err.message || 'Er is iets misgegaan.' 
-      });
+      if (err.message === "AUTH_REQUIRED") {
+        setProcessing({ 
+          status: 'error', 
+          message: 'API-sleutel vereist. Klik op "Sleutel Instellen" om door te gaan.' 
+        });
+      } else {
+        setProcessing({ 
+          status: 'error', 
+          message: err.message || 'Er is iets misgegaan.' 
+        });
+      }
     }
   };
 
@@ -161,7 +203,7 @@ const App: React.FC = () => {
         </InputSection>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-50">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-50">
         <div className="flex items-center gap-3">
           {processing.status === 'processing' ? (
             <div className="flex items-center gap-2 text-blue-600 font-bold">
@@ -169,9 +211,9 @@ const App: React.FC = () => {
               <span>{processing.message}</span>
             </div>
           ) : processing.status === 'error' ? (
-            <div className="flex items-center gap-2 text-red-600 font-bold">
-              <AlertCircle className="w-5 h-5" />
-              <span>Fout: {processing.message}</span>
+            <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{processing.message}</span>
             </div>
           ) : result ? (
             <div className="flex items-center gap-2 text-green-600 font-bold">
@@ -182,7 +224,12 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex gap-2 w-full sm:w-auto">
-          <button onClick={resetForm} className="flex-1 sm:flex-none px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
+          {processing.status === 'error' && processing.message?.includes('Sleutel') && (
+            <button onClick={handleSetKey} className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2">
+              <Key className="w-4 h-4" /> Sleutel Instellen
+            </button>
+          )}
+          <button onClick={resetForm} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
             <RefreshCcw className="w-4 h-4" /> Reset
           </button>
           <button onClick={handleGenerate} disabled={processing.status === 'processing'} className="flex-1 sm:flex-none px-8 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-200 transition-all">

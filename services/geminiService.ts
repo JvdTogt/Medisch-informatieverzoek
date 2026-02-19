@@ -14,10 +14,10 @@ export const processMedicalData = async (
   const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("Geen geldige API-sleutel gevonden. Controleer de instellingen.");
+    throw new Error("AUTH_REQUIRED");
   }
 
-  // Initialiseer de AI pas wanneer de functie wordt uitgevoerd
+  // Maak telkens een nieuwe instantie aan om de meest actuele sleutel te gebruiken
   const genAI = new GoogleGenAI({ apiKey });
   
   const parts: Part[] = [];
@@ -29,14 +29,14 @@ export const processMedicalData = async (
     RICHTLIJNEN:
     1. ANONIMISERING: Scan alle data op privacygevoelige informatie. Vervang namen door [NAAM], BSN door [BSN], etc.
     2. STRUCTUUR: Titel gecentreerd bovenaan. Professionele toon. Max 1.5 A4.
-    3. BRONNEN: Gebruik alle 4 de verstrekte bronnen voor een complete samenvatting.
+    3. BRONNEN: Gebruik de verstrekte bronnen voor een complete samenvatting en verzoek.
     
     Genereer alleen de tekst van de brief in het Nederlands.
   `;
 
-  let prompt = "Stel een medisch informatieverzoek op op basis van de volgende bronnen:\n\n";
+  let prompt = "Stel een medisch informatieverzoek op op basis van deze bronnen:\n\n";
 
-  if (requestInput.text) prompt += `Bron 1 (Verzoek): ${requestInput.text}\n`;
+  if (requestInput.text) prompt += `Bron 1: ${requestInput.text}\n`;
   if (requestInput.file) {
     parts.push({
       inlineData: {
@@ -44,11 +44,11 @@ export const processMedicalData = async (
         mimeType: requestInput.file.mimeType
       }
     });
-    prompt += "(Zie bijlage bij Bron 1)\n";
+    prompt += "(Zie bijlage Bron 1)\n";
   }
 
-  prompt += `\nBron 2 (Journaal): ${journalText}\n`;
-  prompt += `\nBron 3 (Specialist tekst): ${specialistText}\n`;
+  prompt += `\nBron 2: ${journalText}\n`;
+  prompt += `\nBron 3: ${specialistText}\n`;
 
   if (specialistFile) {
     parts.push({
@@ -57,7 +57,7 @@ export const processMedicalData = async (
         mimeType: specialistFile.mimeType
       }
     });
-    prompt += "\nBron 4 (Specialist bestand): (Zie bijlage bij Bron 4)\n";
+    prompt += "\nBron 4: (Zie bijlage Bron 4)\n";
   }
 
   parts.push({ text: prompt });
@@ -72,9 +72,11 @@ export const processMedicalData = async (
       },
     });
 
-    return response.text || "De AI kon geen tekst genereren.";
+    return response.text || "Geen resultaat.";
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    throw new Error("Fout bij communicatie met de AI service: " + (error.message || "Onbekende fout"));
+    if (error.message?.includes("API key not found") || error.message?.includes("Requested entity was not found")) {
+      throw new Error("AUTH_REQUIRED");
+    }
+    throw error;
   }
 };
