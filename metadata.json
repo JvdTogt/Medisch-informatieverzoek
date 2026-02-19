@@ -1,7 +1,0 @@
-{
-  "name": "Medische informatieverzoeken",
-  "description": "Een tool voor huisartsen om snel en anoniem medische informatiebrieven op te stellen op basis van journaalregels en informatieverzoeken.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
