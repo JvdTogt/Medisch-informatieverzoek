@@ -11,9 +11,14 @@ export const processMedicalData = async (
   specialistText: string,
   specialistFile?: FileData
 ): Promise<string> => {
-  // Initialiseer binnen de functie om fouten bij het laden van de pagina te voorkomen
-  // als de API-sleutel nog niet direct beschikbaar is in de omgeving.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Controleer of de API-sleutel beschikbaar is voordat we de SDK initialiseren.
+  // Dit voorkomt de "An API Key must be set" error bij het laden van de pagina.
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("Er is geen API-sleutel geconfigureerd in de omgeving.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const parts: Part[] = [];
 

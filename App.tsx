@@ -75,7 +75,11 @@ const App: React.FC = () => {
 
   const handleDownload = useCallback(async () => {
     if (result) {
-      await downloadAsWord("Medisch informatieverzoek", result);
+      try {
+        await downloadAsWord("Medisch informatieverzoek", result);
+      } catch (err) {
+        console.error("Download error:", err);
+      }
     }
   }, [result]);
 
@@ -90,7 +94,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+    <div className="max-w-5xl mx-auto px-4 py-8 md:py-12 min-h-screen">
       <header className="text-center mb-12">
         <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-2xl mb-4">
           <FileSearch className="w-8 h-8 text-blue-600" />
@@ -196,7 +200,7 @@ const App: React.FC = () => {
         </InputSection>
       </div>
 
-      <div className="sticky bottom-8 z-10 bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="sticky bottom-8 z-10 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {processing.status === 'processing' ? (
             <div className="flex items-center gap-2 text-blue-600 font-medium">
@@ -262,7 +266,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <footer className="mt-16 text-center text-slate-400 text-xs">
+      <footer className="mt-16 text-center text-slate-400 text-xs pb-8">
         <p>&copy; {new Date().getFullYear()} Medisch Info Generator - Beveiligd & Geanonimiseerd</p>
       </footer>
     </div>
