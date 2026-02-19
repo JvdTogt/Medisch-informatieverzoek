@@ -131,8 +131,8 @@ const App: React.FC = () => {
             <span className="text-medical-600 italic">medische informatieverzoeken</span>
           </h1>
           <p className="text-slate-500 text-xl max-w-2xl mx-auto leading-relaxed font-medium">
-            Verwerk en anonimiseer medische dossiers in seconden. <br />
-            Veilig, betrouwbaar en professioneel.
+            Verwerk geanonimiseerd medische informatie ten behoeve van medische informatieverzoeken. <br />
+            Veilig, betrouwbaar en snel.
           </p>
         </header>
 
@@ -143,7 +143,7 @@ const App: React.FC = () => {
           <InputSection 
             step={1}
             title="Upload informatieverzoek" 
-            description="De kernvraag van de externe instantie."
+            description="" 
             icon={<FileText className="w-6 h-6" />}
           >
             <div className="space-y-4">
