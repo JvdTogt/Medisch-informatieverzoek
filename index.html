@@ -5,23 +5,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI tool voor verwerking medische informatieverzoeken</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+              serif: ['Lora', 'ui-serif', 'Georgia'],
+            },
             colors: {
-              slate: {
-                50: '#f8fafc',
-                100: '#f1f5f9',
-                200: '#e2e8f0',
-                300: '#cbd5e1',
-                400: '#94a3b8',
-                500: '#64748b',
-                600: '#475569',
-                700: '#334155',
-                800: '#1e293b',
-                900: '#0f172a',
+              medical: {
+                50: '#f0f7ff',
+                100: '#e0effe',
+                200: '#bae0fd',
+                300: '#7cc8fb',
+                400: '#38acf7',
+                500: '#0e91e9',
+                600: '#0274c7',
+                700: '#035ca1',
+                800: '#074e85',
+                900: '#0c426e',
+                950: '#082a4a',
               },
             },
           },
@@ -31,14 +39,29 @@
     <style>
       body {
         margin: 0;
-        background-color: #f8fafc;
-        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background-color: #fcfdfe;
+        color: #1e293b;
       }
-      .whitespace-pre-wrap {
-        white-space: pre-wrap;
+      .glass {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .mesh-bg {
+        background-color: #fcfdfe;
+        background-image: 
+          radial-gradient(at 0% 0%, rgba(14, 145, 233, 0.05) 0px, transparent 50%),
+          radial-gradient(at 100% 0%, rgba(56, 172, 247, 0.05) 0px, transparent 50%);
       }
       #root {
         min-height: 100vh;
+      }
+      .input-focus {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .input-focus:focus {
+        box-shadow: 0 0 0 4px rgba(14, 145, 233, 0.1);
       }
     </style>
     <script type="importmap">
@@ -57,7 +80,7 @@
 }
 </script>
 </head>
-<body>
+<body class="mesh-bg">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
 </body>
