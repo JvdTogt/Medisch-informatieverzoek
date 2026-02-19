@@ -9,16 +9,13 @@ export const processMedicalData = async (
   requestInput: { text: string; file?: FileData },
   journalText: string,
   specialistText: string,
-  specialistFile?: FileData
+  specialistFile?: FileData,
+  extraContext?: string
 ): Promise<string> => {
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("AUTH_REQUIRED");
-  }
-
-  // Maak telkens een nieuwe instantie aan om de meest recente sleutel te gebruiken
-  const genAI = new GoogleGenAI({ apiKey });
+  // Geen geforceerde AUTH_REQUIRED check hier, we laten de AI call de fout bepalen
+  const genAI = new GoogleGenAI({ apiKey: apiKey || '' });
   
   const parts: Part[] = [];
 
@@ -29,13 +26,11 @@ export const processMedicalData = async (
     RICHTLIJNEN:
     1. ANONIMISERING: Vervang ALLE privacygevoelige gegevens (namen, BSN, geboortedata, adressen van patiënten) door [GEANONIMISEERD].
     2. STRUCTUUR: Professionele briefindeling in het Nederlands. Gebruik een zakelijke toon.
-    3. FORMATTERING: Gebruik GEEN asterisken (*) of hashtags (#) voor opmaak. Lever enkel platte tekst met duidelijke witregels tussen paragrafen.
-    4. INHOUD: Vat de medische context uit de verstrekte bronnen (journaalregels, brieven) samen om de vraag van de externe partij te beantwoorden.
-    
-    Belangrijk: Genereer enkel de tekst van de brief, klaar voor gebruik in een Word-document.
+    3. FORMATTERING: Geen asterisken (*) of hashtags (#). Enkel platte tekst met witregels.
+    4. INHOUD: Gebruik alle bronnen om een compleet antwoord te formuleren op het verzoek.
   `;
 
-  let prompt = "Stel een medisch informatieverzoek op op basis van de volgende bronnen:\n\n";
+  let prompt = "Stel een medisch informatieverzoek op op basis van deze 4 bronnen:\n\n";
 
   if (requestInput.text) prompt += `Bron 1 (Aanvraag): ${requestInput.text}\n`;
   if (requestInput.file) {
@@ -45,11 +40,11 @@ export const processMedicalData = async (
         mimeType: requestInput.file.mimeType
       }
     });
-    prompt += "(Analyseer bijgevoegde scan van Bron 1)\n";
+    prompt += "(Analyseer Bron 1 uit bijlage)\n";
   }
 
-  prompt += `\nBron 2 (HIS Journaal): ${journalText}\n`;
-  prompt += `\nBron 3 (Specialist brieftekst): ${specialistText}\n`;
+  prompt += `\nBron 2 (Journaal): ${journalText}\n`;
+  prompt += `\nBron 3 (Specialist Tekst): ${specialistText}\n`;
 
   if (specialistFile) {
     parts.push({
@@ -58,7 +53,11 @@ export const processMedicalData = async (
         mimeType: specialistFile.mimeType
       }
     });
-    prompt += "\nBron 4 (Specialist bijlage): (Analyseer dit document mee)\n";
+    prompt += "(Analyseer Bron 3 uit bijlage)\n";
+  }
+
+  if (extraContext) {
+    prompt += `\nBron 4 (Extra Context/Medicatie): ${extraContext}\n`;
   }
 
   parts.push({ text: prompt });
@@ -69,18 +68,13 @@ export const processMedicalData = async (
       contents: { parts },
       config: {
         systemInstruction,
-        temperature: 0.15,
+        temperature: 0.1,
       },
     });
 
-    if (!response.text) {
-      throw new Error("Geen resultaat ontvangen van de AI.");
-    }
-
-    return response.text;
+    return response.text || "Fout: Geen tekst gegenereerd.";
   } catch (error: any) {
     const errorMsg = error.message || "";
-    // Gooi de fout door zodat de UI kan reageren op 'Requested entity was not found'
-    throw new Error(errorMsg || "Onbekende AI-fout");
+    throw new Error(errorMsg);
   }
 };
