@@ -1,0 +1,5 @@
+{
+  "name": "Verwerking medisch informatieverzoek",
+  "description": "Een professionele tool voor het genereren van geanonimiseerde medische informatiebrieven op basis van diverse inputbronnen.",
+  "requestFramePermissions": []
+}
