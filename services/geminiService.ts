@@ -13,11 +13,11 @@ export const processMedicalData = async (
 ): Promise<string> => {
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey || apiKey === 'undefined') {
-    throw new Error("API-sleutel niet gevonden. Controleer de omgevingsvariabelen.");
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("Geen geldige API-sleutel gevonden. Controleer de instellingen.");
   }
 
-  // Initialisatie pas bij aanroep
+  // Initialiseer de AI pas wanneer de functie wordt uitgevoerd
   const genAI = new GoogleGenAI({ apiKey });
   
   const parts: Part[] = [];
@@ -27,24 +27,16 @@ export const processMedicalData = async (
     Je taak is het opstellen van een officiële brief met de titel "Medisch informatieverzoek".
     
     RICHTLIJNEN:
-    1. ANONIMISERING: Scan alle input data op privacygevoelige informatie. Je MOET de volgende gegevens ALTIJD vervangen door placeholders:
-       - Namen van patiënten -> [NAAM]
-       - Burgerservicenummers (BSN) -> [BSN]
-       - Geboortedatums -> [GEBOORTEDATUM]
-       - Adressen en telefoonnummers -> [ADRES] / [TELEFOONNUMMER]
+    1. ANONIMISERING: Scan alle data op privacygevoelige informatie. Vervang namen door [NAAM], BSN door [BSN], etc.
+    2. STRUCTUUR: Titel gecentreerd bovenaan. Professionele toon. Max 1.5 A4.
+    3. BRONNEN: Gebruik alle 4 de verstrekte bronnen voor een complete samenvatting.
     
-    2. STRUCTUUR:
-       - Titel: "Medisch informatieverzoek" (Bovenaan gecentreerd).
-       - Inhoud: Een heldere samenvatting en verzoek gebaseerd op de 4 verstrekte inputbronnen.
-       - Lengte: Maximaal 1.5 A4 pagina's aan tekst.
-       - Toon: Professioneel en zakelijk Nederlands.
-    
-    Genereer alleen de tekst voor de brief.
+    Genereer alleen de tekst van de brief in het Nederlands.
   `;
 
-  let prompt = "Stel een medisch informatieverzoek op basis van:\n\n";
+  let prompt = "Stel een medisch informatieverzoek op op basis van de volgende bronnen:\n\n";
 
-  if (requestInput.text) prompt += `BRON 1: ${requestInput.text}\n`;
+  if (requestInput.text) prompt += `Bron 1 (Verzoek): ${requestInput.text}\n`;
   if (requestInput.file) {
     parts.push({
       inlineData: {
@@ -52,11 +44,11 @@ export const processMedicalData = async (
         mimeType: requestInput.file.mimeType
       }
     });
-    prompt += "(Zie bijlage 1)\n";
+    prompt += "(Zie bijlage bij Bron 1)\n";
   }
 
-  prompt += `\nBRON 2: ${journalText}\n`;
-  prompt += `\nBRON 3: ${specialistText}\n`;
+  prompt += `\nBron 2 (Journaal): ${journalText}\n`;
+  prompt += `\nBron 3 (Specialist tekst): ${specialistText}\n`;
 
   if (specialistFile) {
     parts.push({
@@ -65,19 +57,24 @@ export const processMedicalData = async (
         mimeType: specialistFile.mimeType
       }
     });
-    prompt += "\nBRON 4: (Zie bijlage 4)\n";
+    prompt += "\nBron 4 (Specialist bestand): (Zie bijlage bij Bron 4)\n";
   }
 
   parts.push({ text: prompt });
 
-  const response: GenerateContentResponse = await genAI.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: { parts },
-    config: {
-      systemInstruction,
-      temperature: 0.2,
-    },
-  });
+  try {
+    const response: GenerateContentResponse = await genAI.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: { parts },
+      config: {
+        systemInstruction,
+        temperature: 0.2,
+      },
+    });
 
-  return response.text || "Geen resultaat gegenereerd.";
+    return response.text || "De AI kon geen tekst genereren.";
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    throw new Error("Fout bij communicatie met de AI service: " + (error.message || "Onbekende fout"));
+  }
 };
