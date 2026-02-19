@@ -1,2 +1,7 @@
 
-/* Leeg CSS bestand om aan build-vereisten te voldoen en 404-fouten te voorkomen */
+/* Tailwind is geladen via CDN in index.html, dit bestand voorkomt 404 errors */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+}

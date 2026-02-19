@@ -11,15 +11,15 @@ export const processMedicalData = async (
   specialistText: string,
   specialistFile?: FileData
 ): Promise<string> => {
-  // Controleer of de API-sleutel beschikbaar is voordat we de SDK initialiseren.
-  // Dit voorkomt de "An API Key must be set" error bij het laden van de pagina.
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("Er is geen API-sleutel geconfigureerd in de omgeving.");
+  
+  if (!apiKey || apiKey === 'undefined') {
+    throw new Error("API-sleutel niet gevonden. Controleer de omgevingsvariabelen.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-
+  // Initialisatie pas bij aanroep
+  const genAI = new GoogleGenAI({ apiKey });
+  
   const parts: Part[] = [];
 
   const systemInstruction = `
@@ -36,22 +36,15 @@ export const processMedicalData = async (
     2. STRUCTUUR:
        - Titel: "Medisch informatieverzoek" (Bovenaan gecentreerd).
        - Inhoud: Een heldere samenvatting en verzoek gebaseerd op de 4 verstrekte inputbronnen.
-       - Lengte: Maximaal 1.5 A4 pagina's aan tekst (ongeveer 800-1000 woorden).
-       - Toon: Professioneel, zakelijk en medisch correct Nederlands.
+       - Lengte: Maximaal 1.5 A4 pagina's aan tekst.
+       - Toon: Professioneel en zakelijk Nederlands.
     
-    3. INPUT BRONNEN:
-       - Bron 1: Het informatieverzoek zelf (kan tekst of afbeelding zijn).
-       - Bron 2: Journaalregels uit een HIS (Huisarts Informatie Systeem).
-       - Bron 3: Tekst uit een specialistenbrief.
-       - Bron 4: Geüpload document van een specialist.
-    
-    Genereer alleen de tekst voor de brief, beginnend bij de titel.
+    Genereer alleen de tekst voor de brief.
   `;
 
-  let prompt = "Stel een medisch informatieverzoek op basis van de volgende gegevens:\n\n";
+  let prompt = "Stel een medisch informatieverzoek op basis van:\n\n";
 
-  prompt += "BRON 1 (Informatieverzoek):\n";
-  if (requestInput.text) prompt += `Tekst: ${requestInput.text}\n`;
+  if (requestInput.text) prompt += `BRON 1: ${requestInput.text}\n`;
   if (requestInput.file) {
     parts.push({
       inlineData: {
@@ -59,11 +52,11 @@ export const processMedicalData = async (
         mimeType: requestInput.file.mimeType
       }
     });
-    prompt += "(Zie bijgevoegde afbeelding/PDF voor Bron 1)\n";
+    prompt += "(Zie bijlage 1)\n";
   }
 
-  prompt += `\nBRON 2 (Journaalregels):\n${journalText}\n`;
-  prompt += `\nBRON 3 (Specialistenbrief tekst):\n${specialistText}\n`;
+  prompt += `\nBRON 2: ${journalText}\n`;
+  prompt += `\nBRON 3: ${specialistText}\n`;
 
   if (specialistFile) {
     parts.push({
@@ -72,19 +65,19 @@ export const processMedicalData = async (
         mimeType: specialistFile.mimeType
       }
     });
-    prompt += "\nBRON 4 (Specialistenbrief bestand): (Zie bijgevoegde afbeelding/PDF/Document voor Bron 4)\n";
+    prompt += "\nBRON 4: (Zie bijlage 4)\n";
   }
 
   parts.push({ text: prompt });
 
-  const response: GenerateContentResponse = await ai.models.generateContent({
+  const response: GenerateContentResponse = await genAI.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: { parts },
     config: {
-      systemInstruction: systemInstruction,
-      temperature: 0.3,
+      systemInstruction,
+      temperature: 0.2,
     },
   });
 
-  return response.text || "Fout bij het genereren van de tekst.";
+  return response.text || "Geen resultaat gegenereerd.";
 };
