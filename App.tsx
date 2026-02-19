@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+
+import React, { useState } from 'react';
 import { processMedicalData } from './services/geminiService';
 import { downloadAsWord } from './services/wordService';
 import { FileData, ProcessingState } from './types';
@@ -34,13 +35,13 @@ const App: React.FC = () => {
    */
   const handleSetKey = async () => {
     try {
-      // Assuming window.aistudio is pre-configured and accessible in the environment
-      // @ts-ignore: window.aistudio is provided by the execution context
+      // @ts-ignore
       if (window.aistudio) {
-        // @ts-ignore: window.aistudio is provided by the execution context
+        // @ts-ignore
         await window.aistudio.openSelectKey();
-        // Belangrijk: Ga er vanuit dat de selectie succesvol was en probeer direct te genereren
-        setTimeout(() => handleGenerate(), 100); 
+        // Na selectie proberen we direct opnieuw
+        setProcessing({ status: 'processing', message: 'Sleutel geselecteerd, brief genereren...' });
+        setTimeout(() => handleGenerate(), 300); 
       }
     } catch (err) {
       console.error("Fout bij openen key selector:", err);
@@ -64,25 +65,24 @@ const App: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    // Check of er invoer is
     if (!requestText && !requestFile && !journalText && !specialistText && !specialistFile) {
-      setProcessing({ status: 'error', message: 'Vul minimaal één veld in.' });
+      setProcessing({ status: 'error', message: 'Vul minimaal één bron in.' });
       return;
     }
 
-    // Controleer API sleutel status
-    // @ts-ignore: window.aistudio is provided by the execution context
+    // Proactieve check op sleutel aanwezigheid
+    // @ts-ignore
     if (window.aistudio) {
-      // @ts-ignore: window.aistudio is provided by the execution context
+      // @ts-ignore
       const hasKey = await window.aistudio.hasSelectedApiKey();
-      // Als er geen sleutel is en geen env var, open de selector
       if (!hasKey && (!process.env.API_KEY || process.env.API_KEY === 'undefined' || process.env.API_KEY === '')) {
+        setProcessing({ status: 'error', message: 'Geen API-sleutel geselecteerd.' });
         await handleSetKey();
         return;
       }
     }
 
-    setProcessing({ status: 'processing', message: 'Bezig met genereren...' });
+    setProcessing({ status: 'processing', message: 'Bezig met anonimiseren en opstellen...' });
     setResult(null);
 
     try {
@@ -95,16 +95,15 @@ const App: React.FC = () => {
       setResult(generatedText);
       setProcessing({ status: 'success' });
     } catch (err: any) {
-      // Als de fout aangeeft dat autorisatie nodig is of project niet gevonden (vaak billing issue)
       if (err.message === "AUTH_REQUIRED") {
         setProcessing({ 
           status: 'error', 
-          message: 'Geldige API-sleutel (betaald project) vereist. Klik op "Sleutel Instellen".' 
+          message: 'Geldige API-sleutel (BETAALD PROJECT) vereist voor Gemini 3 Pro.' 
         });
       } else {
         setProcessing({ 
           status: 'error', 
-          message: err.message || 'Er is iets misgegaan bij de AI-verwerking.' 
+          message: err.message || 'Onverwachte fout bij genereren.' 
         });
       }
     }
@@ -126,9 +125,9 @@ const App: React.FC = () => {
         <div className="inline-flex items-center justify-center p-4 bg-blue-100 rounded-3xl mb-6">
           <FileSearch className="w-10 h-10 text-blue-600" />
         </div>
-        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Medisch Info Generator</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">AI tool voor verwerking medische informatieverzoeken</h1>
         <p className="text-slate-500 text-lg max-w-2xl mx-auto">
-          Creëer geanonimiseerde medische verzoeken op basis van dossiergegevens.
+          Genereer professionele, geanonimiseerde brieven op basis van diverse medische bronnen.
         </p>
       </header>
 
@@ -148,19 +147,9 @@ const App: React.FC = () => {
             <input type="file" id="req-file" className="hidden" onChange={(e) => handleFileUpload(e, setRequestFile)} />
             <label htmlFor="req-file" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm">
               <Upload className="w-4 h-4 text-blue-500" />
-              {requestFile ? (
-                <span className="truncate max-w-[150px]">{requestFile.name}</span>
-              ) : "Bijlage toevoegen"}
+              {requestFile ? <span className="truncate max-w-[150px]">{requestFile.name}</span> : "Scan toevoegen"}
             </label>
-            {requestFile && (
-              <button 
-                onClick={() => setRequestFile(undefined)} 
-                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                title="Verwijder bijlage"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+            {requestFile && <button onClick={() => setRequestFile(undefined)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
           </div>
         </InputSection>
 
@@ -171,15 +160,15 @@ const App: React.FC = () => {
         >
           <textarea
             className="w-full h-48 p-4 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none resize-none"
-            placeholder="Journaalregels..."
+            placeholder="Plak journaalregels..."
             value={journalText}
             onChange={(e) => setJournalText(e.target.value)}
           />
         </InputSection>
 
         <InputSection 
-          title="3. Specialistenbrief (Tekst)" 
-          description="Kopie van de tekst uit een brief."
+          title="3. Brieftekst Specialist" 
+          description="Kopie van tekst uit een eerdere brief."
           icon={<Stethoscope className="w-5 h-5" />}
         >
           <textarea
@@ -191,8 +180,8 @@ const App: React.FC = () => {
         </InputSection>
 
         <InputSection 
-          title="4. Brief (Bestand)" 
-          description="Upload een PDF of Word-bestand."
+          title="4. Brief (Document)" 
+          description="Upload volledige brief (PDF of Word)."
           icon={<Upload className="w-5 h-5" />}
         >
           <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 p-6 group hover:border-blue-400 transition-colors">
@@ -202,16 +191,15 @@ const App: React.FC = () => {
                   <Upload className="w-6 h-6 text-blue-600" />
                 </div>
                 <span className="text-sm font-semibold text-slate-600 text-center max-w-[200px] truncate">
-                  {specialistFile ? specialistFile.name : "Kies bestand"}
+                  {specialistFile ? specialistFile.name : "Kies document"}
                 </span>
              </label>
-             {specialistFile && <button onClick={() => setSpecialistFile(undefined)} className="mt-4 text-xs text-red-500 hover:underline font-medium">Bestand verwijderen</button>}
+             {specialistFile && <button onClick={() => setSpecialistFile(undefined)} className="mt-4 text-xs text-red-500 hover:underline font-medium">Verwijder bestand</button>}
           </div>
         </InputSection>
       </div>
 
-      {/* Floating Action Bar */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-4xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-50">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-50">
         <div className="flex items-center gap-3">
           {processing.status === 'processing' ? (
             <div className="flex items-center gap-2 text-blue-600 font-bold">
@@ -226,16 +214,16 @@ const App: React.FC = () => {
           ) : result ? (
             <div className="flex items-center gap-2 text-green-600 font-bold">
               <CheckCircle2 className="w-5 h-5" />
-              <span>Brief gegenereerd!</span>
+              <span>Gereed voor export</span>
             </div>
-          ) : <span className="text-slate-400 text-sm italic">Klaar voor verwerking...</span>}
+          ) : <span className="text-slate-400 text-sm italic">Voer data in...</span>}
         </div>
 
         <div className="flex gap-2 w-full sm:w-auto">
           {processing.status === 'error' && (
             <button 
               onClick={handleSetKey} 
-              className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-lg shadow-amber-200"
             >
               <Key className="w-4 h-4" /> Sleutel Instellen
             </button>
@@ -249,9 +237,9 @@ const App: React.FC = () => {
           <button 
             onClick={handleGenerate} 
             disabled={processing.status === 'processing'} 
-            className="flex-1 sm:flex-none px-8 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-200 transition-all active:scale-95"
+            className="flex-1 sm:flex-none px-8 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-200 transition-all"
           >
-            Genereer
+            Genereer Brief
           </button>
         </div>
       </div>
@@ -261,13 +249,13 @@ const App: React.FC = () => {
           <div className="bg-slate-900 text-white p-6 flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <FileText className="w-6 h-6 text-blue-400" />
-              Geanonimiseerd Resultaat
+              Gegenereerde Brief
             </h2>
             <button 
-              onClick={() => downloadAsWord("Informatieverzoek", result)} 
+              onClick={() => downloadAsWord("Medisch Informatieverzoek", result)} 
               className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-95"
             >
-              <Download className="w-5 h-5" /> Download Word
+              <Download className="w-5 h-5" /> Download als Word
             </button>
           </div>
           <div className="p-8 md:p-16 bg-slate-50/30">

@@ -17,26 +17,26 @@ export const processMedicalData = async (
     throw new Error("AUTH_REQUIRED");
   }
 
-  // Maak telkens een nieuwe instantie aan om de meest actuele sleutel te gebruiken
   const genAI = new GoogleGenAI({ apiKey });
   
   const parts: Part[] = [];
 
   const systemInstruction = `
     Je bent een deskundige medisch administratief medewerker. 
-    Je taak is het opstellen van een officiële brief met de titel "Medisch informatieverzoek".
+    Je taak is het opstellen van een officiële brief met de titel "MEDISCH INFORMATIEVERZOEK".
     
     RICHTLIJNEN:
-    1. ANONIMISERING: Scan alle data op privacygevoelige informatie. Vervang namen door [NAAM], BSN door [BSN], etc.
-    2. STRUCTUUR: Titel gecentreerd bovenaan. Professionele toon. Max 1.5 A4.
-    3. BRONNEN: Gebruik de verstrekte bronnen voor een complete samenvatting en verzoek.
+    1. ANONIMISERING: Vervang ALLE privacygevoelige gegevens (namen, BSN, geboortedata, adressen van patiënten) door [GEANONIMISEERD].
+    2. STRUCTUUR: Professionele briefindeling in het Nederlands. Gebruik een zakelijke toon.
+    3. FORMATTERING: Gebruik GEEN asterisken (*) of hashtags (#) voor opmaak. Lever enkel platte tekst met duidelijke witregels tussen paragrafen.
+    4. INHOUD: Vat de medische context uit de verstrekte bronnen (journaalregels, brieven) samen om de vraag van de externe partij te beantwoorden.
     
-    Genereer alleen de tekst van de brief in het Nederlands.
+    Belangrijk: Genereer enkel de tekst van de brief, klaar voor gebruik in een Word-document.
   `;
 
-  let prompt = "Stel een medisch informatieverzoek op op basis van deze bronnen:\n\n";
+  let prompt = "Stel een medisch informatieverzoek op op basis van de volgende bronnen:\n\n";
 
-  if (requestInput.text) prompt += `Bron 1: ${requestInput.text}\n`;
+  if (requestInput.text) prompt += `Bron 1 (Aanvraag): ${requestInput.text}\n`;
   if (requestInput.file) {
     parts.push({
       inlineData: {
@@ -44,11 +44,11 @@ export const processMedicalData = async (
         mimeType: requestInput.file.mimeType
       }
     });
-    prompt += "(Zie bijlage Bron 1)\n";
+    prompt += "(Analyseer bijgevoegde scan van Bron 1)\n";
   }
 
-  prompt += `\nBron 2: ${journalText}\n`;
-  prompt += `\nBron 3: ${specialistText}\n`;
+  prompt += `\nBron 2 (HIS Journaal): ${journalText}\n`;
+  prompt += `\nBron 3 (Specialist brieftekst): ${specialistText}\n`;
 
   if (specialistFile) {
     parts.push({
@@ -57,7 +57,7 @@ export const processMedicalData = async (
         mimeType: specialistFile.mimeType
       }
     });
-    prompt += "\nBron 4: (Zie bijlage Bron 4)\n";
+    prompt += "\nBron 4 (Specialist bijlage): (Analyseer dit document mee)\n";
   }
 
   parts.push({ text: prompt });
@@ -68,15 +68,23 @@ export const processMedicalData = async (
       contents: { parts },
       config: {
         systemInstruction,
-        temperature: 0.2,
+        temperature: 0.15,
       },
     });
 
-    return response.text || "Geen resultaat.";
+    if (!response.text) {
+      throw new Error("Geen resultaat ontvangen van de AI.");
+    }
+
+    return response.text;
   } catch (error: any) {
-    if (error.message?.includes("API key not found") || error.message?.includes("Requested entity was not found")) {
+    const errorMsg = error.message || "";
+    if (errorMsg.includes("API key not found") || 
+        errorMsg.includes("Requested entity was not found") ||
+        errorMsg.includes("403") ||
+        errorMsg.includes("401")) {
       throw new Error("AUTH_REQUIRED");
     }
-    throw error;
+    throw new Error("AI-fout: " + errorMsg);
   }
 };

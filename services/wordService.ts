@@ -3,37 +3,71 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } fro
 import saveAs from 'file-saver';
 
 /**
- * Genereert en downloadt een Word-bestand.
- * Hernoemd van generateWordFile naar downloadAsWord conform de build error.
+ * Filtert Markdown-symbolen uit de tekst voor een schone Word-export.
+ */
+const cleanMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Verwijder vetgedrukt (**)
+    .replace(/\*(.*?)\*/g, '$1')     // Verwijder cursief of opsommingsteken (*)
+    .replace(/__(.*?)__/g, '$1')     // Verwijder underscores (__)
+    .replace(/^#+\s+/gm, '')         // Verwijder heading tekens (#)
+    .replace(/^-+\s+/gm, '• ')       // Vervang streepjes door echte bulletpoints
+    .replace(/^>\s+/gm, '')          // Verwijder quote tekens (>)
+    .replace(/`/g, '');              // Verwijder backticks
+};
+
+/**
+ * Genereert en downloadt een professioneel Word-bestand zonder Markdown-tekens.
  */
 export const downloadAsWord = async (title: string, content: string) => {
+  const cleanedContent = cleanMarkdown(content);
+  
   const doc = new Document({
+    creator: "AI Medisch Info Generator",
+    title: title,
+    description: "Geautomatiseerd medisch informatieverzoek",
     sections: [
       {
-        properties: {},
+        properties: {
+          page: {
+            margin: {
+              top: 1440,    // 1 inch
+              right: 1440,
+              bottom: 1440,
+              left: 1440,
+            }
+          }
+        },
         children: [
           new Paragraph({
-            text: title,
+            text: title.toUpperCase(),
             heading: HeadingLevel.HEADING_1,
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
+            spacing: { after: 600 },
           }),
-          ...content.split('\n').map(line => 
-            new Paragraph({
+          ...cleanedContent.split('\n').map(line => {
+            const isBullet = line.startsWith('•');
+            return new Paragraph({
               children: [
                 new TextRun({
                   text: line,
-                  size: 24,
+                  size: 24, // 12pt
+                  font: "Calibri",
                 }),
               ],
-              spacing: { after: 200 },
-            })
-          ),
+              spacing: { 
+                before: line.trim() === "" ? 0 : 120,
+                after: 120 
+              },
+              indent: isBullet ? { left: 720, hanging: 360 } : undefined,
+            });
+          }),
         ],
       },
     ],
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, "Medisch_Informatieverzoek.docx");
+  const fileName = `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
+  saveAs(blob, fileName);
 };
