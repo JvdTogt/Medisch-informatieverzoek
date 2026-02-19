@@ -17,6 +17,7 @@ export const processMedicalData = async (
     throw new Error("AUTH_REQUIRED");
   }
 
+  // Maak telkens een nieuwe instantie aan om de meest recente sleutel te gebruiken
   const genAI = new GoogleGenAI({ apiKey });
   
   const parts: Part[] = [];
@@ -79,12 +80,7 @@ export const processMedicalData = async (
     return response.text;
   } catch (error: any) {
     const errorMsg = error.message || "";
-    if (errorMsg.includes("API key not found") || 
-        errorMsg.includes("Requested entity was not found") ||
-        errorMsg.includes("403") ||
-        errorMsg.includes("401")) {
-      throw new Error("AUTH_REQUIRED");
-    }
-    throw new Error("AI-fout: " + errorMsg);
+    // Gooi de fout door zodat de UI kan reageren op 'Requested entity was not found'
+    throw new Error(errorMsg || "Onbekende AI-fout");
   }
 };

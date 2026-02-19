@@ -34,16 +34,24 @@ const App: React.FC = () => {
   const [result, setResult] = useState<string | null>(null);
 
   const handleSetKey = async () => {
-    try {
-      // @ts-ignore
-      if (window.aistudio) {
+    // @ts-ignore
+    if (window.aistudio) {
+      try {
+        setProcessing({ status: 'processing', message: 'Sleutelvenster openen...' });
         // @ts-ignore
         await window.aistudio.openSelectKey();
-        setProcessing({ status: 'processing', message: 'Sleutel gekoppeld, herstart...' });
-        setTimeout(() => handleGenerate(), 400); 
+        // Na het aanroepen gaan we ervan uit dat de gebruiker actie onderneemt.
+        // We proberen direct te genereren (race condition handling)
+        handleGenerate();
+      } catch (err) {
+        console.error("Fout bij openen key selector:", err);
+        setProcessing({ status: 'error', message: 'Kon het sleutelvenster niet openen.' });
       }
-    } catch (err) {
-      console.error("Fout bij openen key selector:", err);
+    } else {
+      setProcessing({ 
+        status: 'error', 
+        message: 'Platform integratie ontbreekt. Gebruik de knop in AI Studio of stel een API_KEY in.' 
+      });
     }
   };
 
@@ -69,6 +77,7 @@ const App: React.FC = () => {
       return;
     }
 
+    // Controleer of er een sleutel is, anders open selector
     // @ts-ignore
     if (window.aistudio) {
       // @ts-ignore
@@ -92,7 +101,21 @@ const App: React.FC = () => {
       setResult(generatedText);
       setProcessing({ status: 'success' });
     } catch (err: any) {
-      if (err.message === "AUTH_REQUIRED") {
+      const errorMsg = err.message || '';
+      
+      // Specifieke afhandeling voor "Requested entity was not found" -> opnieuw sleutel vragen
+      if (errorMsg.includes("Requested entity was not found")) {
+        setProcessing({ 
+          status: 'error', 
+          message: 'Geselecteerde project/sleutel heeft geen toegang. Kies een betaald project.' 
+        });
+        // @ts-ignore
+        if (window.aistudio) {
+          // Forceer opnieuw openen van de selector
+          // @ts-ignore
+          window.aistudio.openSelectKey();
+        }
+      } else if (errorMsg === "AUTH_REQUIRED") {
         setProcessing({ 
           status: 'error', 
           message: 'Project autorisatie vereist (Premium API).' 
@@ -100,7 +123,7 @@ const App: React.FC = () => {
       } else {
         setProcessing({ 
           status: 'error', 
-          message: err.message || 'Verwerkingsfout.' 
+          message: errorMsg || 'Verwerkingsfout.' 
         });
       }
     }
@@ -138,8 +161,6 @@ const App: React.FC = () => {
 
         {/* Vertical Layout - Step by Step */}
         <div className="space-y-12">
-          
-          {/* Sectie 1: Upload informatieverzoek */}
           <InputSection 
             step={1}
             title="Upload informatieverzoek" 
@@ -168,7 +189,6 @@ const App: React.FC = () => {
             </div>
           </InputSection>
 
-          {/* Sectie 2: Invoer journaalregels */}
           <InputSection 
             step={2}
             title="Invoer journaalregels" 
@@ -183,7 +203,6 @@ const App: React.FC = () => {
             />
           </InputSection>
 
-          {/* Sectie 3: Invoer specialistische informatie */}
           <InputSection 
             step={3}
             title="Specialistische informatie" 
@@ -255,14 +274,12 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex gap-3 w-full md:w-auto">
-              {processing.status === 'error' && (
-                <button 
-                  onClick={handleSetKey} 
-                  className="px-6 py-4 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-xl shadow-amber-200 active:scale-95"
-                >
-                  <Key className="w-4 h-4" /> Sleutel
-                </button>
-              )}
+              <button 
+                onClick={handleSetKey} 
+                className="px-6 py-4 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-xl shadow-amber-200 active:scale-95"
+              >
+                <Key className="w-4 h-4" /> Sleutel
+              </button>
               <button 
                 onClick={resetForm} 
                 className="px-8 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
